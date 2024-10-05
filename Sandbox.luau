@@ -200,7 +200,9 @@ function Sandbox(func, ...)
 			if typeof(Environment) == "table" then
 				for Name, Value in pairs(Environment) do
 					if typeof(Value) == "table" or typeof(Value) == "function" then
-						FunctionEnvironmentOverride[Name] = Value
+						if FunctionEnvironmentOverride[Name] == nil then
+							FunctionEnvironmentOverride[Name] = Value
+						end
 					end
 				end
 			end
