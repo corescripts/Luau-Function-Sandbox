@@ -14,7 +14,7 @@ SandboxSettings = {
 		LogInstanceChildrenIndex = true, -- Logs whenever the sandboxed function tries to get its children, for example: trying to get the .ReplicatedStorage child of game `game.ReplicatedStorage` will print "[game] Attempt to GET child ReplicatedStorage"
 		
 		LogGlobalFunctionCall = true, -- Logs whenever the sandboxed function tries to call a global function, for example: trying to `printidentity()` will log the fact that it's being called.
-		LogGlobalFunctionCallArguments = true, -- Logs whenever the sandboxed function tries to call a global function but includes the argumetns passed into the function, for example: trying to `printidentity("sd")` will log the fact that it's being called, and its arguments, which in this case, "sd".
+		LogGlobalFunctionCallArguments = false, -- Logs whenever the sandboxed function tries to call a global function but includes the argumetns passed into the function, for example: trying to `printidentity("sd")` will log the fact that it's being called, and its arguments, which in this case, "sd".
 	},
 	Excluding = {
 		ExcludedGlobalFunctions = {print}, -- A list of global functions which you want to exclude from being logged.
@@ -22,6 +22,12 @@ SandboxSettings = {
 	Hooking = {
 		Enabled = true, -- Set this to true if you wish to hook the functions you listed in the table below, and false if not.
 		HookedFunctions = { -- A list of functions that will be hooked. This will literally block the original functions from being called, and call your own function instead. Please keep note that this works by intercepting indexes to the function and checks if its memory address matches one of the functions listed in this dictionary, and this may not be a reliable approach.
+			[game:GetService("HttpRbxApiService").GetAsync] = function()
+				return error("")
+			end,
+			[game:GetService("HttpRbxApiService").GetAsyncFullUrl] = function()
+				return error("")
+			end,
 		}
 	},
 	FunctionEnvironment = {}, -- Replace this table with a table full of your custom global functions. This is useful if you have a custom environment with your own custom functions, and you want to log calls to those functions. One example usage is for Roblox executors which have their own custom functions also knwon as the Unified Naming Convention functions. For executors, Do Environment = getgenv()
@@ -425,6 +431,10 @@ function Sandbox(func, ...)
 		end
 	end
 	
+	FunctionEnvironmentOverride.getfenv = getfenv
+	
+	FunctionEnvironmentOverride.setfenv = setfenv
+	
 	FunctionEnvironmentOverride.type = FunctionEnvironmentOverride.typeof
 	
 	FunctionEnvironmentOverride.Instance = {
@@ -452,8 +462,8 @@ function Sandbox(func, ...)
 		end
 	}
 	
-	if SandboxSettings.Logging.LogGlobalFunctionCalls then
-		for Name, Value in FunctionEnvironmentOverride do
+	if SandboxSettings.Logging.LogGlobalFunctionCall then
+		for Name, Value in pairs(FunctionEnvironmentOverride) do
 			if typeof(Value) == "function" then
 				FunctionEnvironmentOverride[Name] = function(...)
 					if table.find(SandboxSettings.Excluding.ExcludedGlobalFunctions, Value) ~= nil then
@@ -469,12 +479,12 @@ function Sandbox(func, ...)
 								ArgumentsStr = ArgumentsStr .. TruncateString(tostring(Arg)) .. " (Argument Type: " .. tostring(typeof(Arg)) .. "), "
 							end
 
-							print("[GLOBAL] Attempt to CALL function " .. Name .. " with arguments: " .. ArgumentsStr)
+							Callback("[GLOBAL] Attempt to CALL function " .. Name .. " with arguments: " .. ArgumentsStr)
 						else
-							print("[GLOBAL] Attempt to CALL function " .. Name .. " with no args.")
+							Callback("[GLOBAL] Attempt to CALL function " .. Name .. " with no args.")
 						end
 					else
-						print("[GLOBAL] Attempt to CALL function " .. Name .. ".")
+						Callback("[GLOBAL] Attempt to CALL function " .. Name .. ".")
 					end
 
 					return Value(...)
@@ -498,12 +508,12 @@ function Sandbox(func, ...)
 										ArgumentsStr = ArgumentsStr .. TruncateString(tostring(Arg)) .. " (Argument Type: " .. tostring(typeof(Arg)) .. "), "
 									end
 
-									print("[GLOBAL] Attempt to CALL function " .. Name .. "." .. Name2 .. " with arguments: " .. ArgumentsStr)
+									Callback("[GLOBAL] Attempt to CALL function " .. Name .. "." .. Name2 .. " with arguments: " .. ArgumentsStr)
 								else
-									print("[GLOBAL] Attempt to CALL function " .. Name .. "." .. Name2 .. " with no args.")
+									Callback("[GLOBAL] Attempt to CALL function " .. Name .. "." .. Name2 .. " with no args.")
 								end
 							else
-								print("[GLOBAL] Attempt to CALL function " .. Name .. "." .. Name2 .. ".")
+								Callback("[GLOBAL] Attempt to CALL function " .. Name .. "." .. Name2 .. ".")
 							end
 
 							return Func(...)
