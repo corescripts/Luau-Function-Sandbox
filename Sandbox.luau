@@ -18,6 +18,7 @@ SandboxSettings = {
 	},
 	Excluding = {
 		ExcludedGlobalFunctions = {print}, -- A list of global functions which you want to exclude from being logged.
+		ExcludeCFunctions = false, -- Will exclude non Lua functions (C functions) from being sandboxed as there is literally no purpose in doing this. However, loadstring returns a C function but executes Luau instructions.
 	},
 	Hooking = {
 		Enabled = true, -- Set this to true if you wish to hook the functions you listed in the table below, and false if not.
@@ -106,7 +107,7 @@ end
 
 function Sandbox(func, ...)
 	assert(typeof(func) == "function", "Expected function to be passed as the first argument to Sandbox.")
-	assert(debug.info(func, "s") ~= "[C]", "Expected Lua function passed as the first argument, not C.")
+	assert(debug.info(func, "s") ~= "[C]", "Expected Lua function passed as the first argument, not C. You can disable this in the SandboxSettings table at the top of the Sandbox script")
 	
 	local OriginalFunction = func
 	local Callback = SandboxSettings.Logging.Callback
