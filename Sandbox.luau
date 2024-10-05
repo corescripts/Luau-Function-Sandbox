@@ -14,7 +14,7 @@ SandboxSettings = {
 		LogInstanceChildrenIndex = true, -- Logs whenever the sandboxed function tries to get its children, for example: trying to get the .ReplicatedStorage child of game `game.ReplicatedStorage` will print "[game] Attempt to GET child ReplicatedStorage"
 		
 		LogGlobalFunctionCall = true, -- Logs whenever the sandboxed function tries to call a global function, for example: trying to `printidentity()` will log the fact that it's being called.
-		LogGlobalFunctionCallArguments = false, -- Logs whenever the sandboxed function tries to call a global function but includes the argumetns passed into the function, for example: trying to `printidentity("sd")` will log the fact that it's being called, and its arguments, which in this case, "sd".
+		LogGlobalFunctionCallArguments = true, -- Logs whenever the sandboxed function tries to call a global function but includes the argumetns passed into the function, for example: trying to `printidentity("sd")` will log the fact that it's being called, and its arguments, which in this case, "sd".
 	},
 	Excluding = {
 		ExcludedGlobalFunctions = {print}, -- A list of global functions which you want to exclude from being logged.
@@ -193,6 +193,20 @@ function Sandbox(func, ...)
 		Vector3int16 = Vector3int16,
 	}
 	
+	if getgenv ~= nil then -- Support for Roblox executors
+		if typeof(getgenv) == "function" then
+			local Environment = getgenv()
+
+			if typeof(Environment) == "table" then
+				for Name, Value in pairs(Environment) do
+					if typeof(Value) == "table" or typeof(Value) == "function" then
+						FunctionEnvironmentOverride[Name] = Value
+					end
+				end
+			end
+		end
+	end
+	
 	for Name, Function in pairs(SandboxSettings.FunctionEnvironment) do
 		if Name == 1 then
 			return error("Expected dictionary to be passed in FunctionEnvironment, not standard table.")
@@ -304,6 +318,10 @@ function Sandbox(func, ...)
 					end
 				end
 				
+				if typeof(Value) == "userdata" then
+					Value = Value[GeneralPurposeString]()
+				end
+				
 				Object[Key] = Value
 			else
 				return error(Key .. ' is not a valid member of ' .. tostring(typeof(Object)) .. ' "' .. ObjectName .. '"')
@@ -409,6 +427,10 @@ function Sandbox(func, ...)
 						Callback("[game] Attempt to SET property ." .. Key .. " (PROPERTY SET VALUE LOGGING DISABLED)")
 					end
 				end
+				
+				if typeof(Value) == "userdata" then
+					Value = Value[GeneralPurposeString]()
+				end
 
 				DataModel[Key] = Value
 			else
@@ -467,7 +489,7 @@ function Sandbox(func, ...)
 			if typeof(Value) == "function" then
 				FunctionEnvironmentOverride[Name] = function(...)
 					if table.find(SandboxSettings.Excluding.ExcludedGlobalFunctions, Value) ~= nil then
-						return Value(...) -- no interception is needed, its an excluded func
+						return ResponseHandler(CloneInstance, Value(ArgumentHandler(...))) -- no interception is needed, its an excluded func
 					end
 
 					if SandboxSettings.Logging.LogGlobalFunctionCallArguments then
@@ -487,7 +509,7 @@ function Sandbox(func, ...)
 						Callback("[GLOBAL] Attempt to CALL function " .. Name .. ".")
 					end
 
-					return Value(...)
+					return ResponseHandler(CloneInstance, Value(ArgumentHandler(...)))
 				end
 			elseif typeof(Value) == "table" then
 				for Name2, Func in pairs(Value) do
@@ -496,7 +518,7 @@ function Sandbox(func, ...)
 					elseif typeof(Func) == "function" then
 						Value[Name2] = function(...)
 							if table.find(SandboxSettings.Excluding.ExcludedGlobalFunctions, Func) ~= nil then
-								return Func(...) -- no interception is needed, its an excluded func
+								return ResponseHandler(CloneInstance, Func(ArgumentHandler(...))) -- no interception is needed, its an excluded func
 							end
 
 							if SandboxSettings.Logging.LogGlobalFunctionCallArguments then
@@ -516,7 +538,7 @@ function Sandbox(func, ...)
 								Callback("[GLOBAL] Attempt to CALL function " .. Name .. "." .. Name2 .. ".")
 							end
 
-							return Func(...)
+							return ResponseHandler(CloneInstance, Func(ArgumentHandler(...)))
 						end
 					end
 				end
