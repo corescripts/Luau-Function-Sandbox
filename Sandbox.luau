@@ -1,6 +1,3 @@
---!native
---!optimize 2
-
 SandboxSettings = {
 	Logging = {
 		Callback = print, -- Set this value to a function which will take a string as the first argument to log stuff such as function calls, property changes and etc. Default: print
